@@ -1,0 +1,12 @@
+[package]
+name = "warped-sampling"
+version = "0.1.0"
+authors = ["Jasper-Bekkers <bekkers@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+halton = "0.1.0"
+minifb = "0.10"
+imageproc = "0.15"
+image = "0.19"
+num = "0.2.0"
