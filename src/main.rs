@@ -1,7 +1,7 @@
 use halton::Sequence;
 use image::*;
 use imageproc::drawing::*;
-use minifb::{Key, KeyRepeat, MouseButton, MouseMode, Window, WindowOptions};
+use minifb::{Key, Window, WindowOptions};
 
 const WIDTH: usize = 1024;
 const HEIGHT: usize = 1024;
@@ -62,27 +62,22 @@ fn warp(
     level: usize,
     x: usize,
     y: usize,
-    tx: usize,
-    ty: usize,
     w: usize,
     scale: f64,
     b: &Box2f,
     points: &[(f64, f64)],
     warped_points: &mut Vec<(f64, f64)>,
-    debug_boxes: &mut Vec<Box2f>,
 ) {
     if level >= mipmaps.len() {
-        let tx = x;//dbg!(tx);
-        let ty = y;//dbg!(ty);
-
-        let inv_size = 1.0 / ((1 << level) as f64);
+        let inv_size = 1.0 / ((1 << level + 1) as f64);
 
         let texture_box = Box2f {
-            min: (0.5 * tx as f64 * inv_size, 0.5 * ty as f64 * inv_size),
-            max: (0.5 * (tx as f64 + 2.0) * inv_size, 0.5 * (ty as f64 + 2.0) * inv_size),
+            min: (x as f64 * inv_size, y as f64 * inv_size),
+            max: (
+                (x as f64 + 2.0) * inv_size,
+                (y as f64 + 2.0) * inv_size,
+            ),
         };
-
-        debug_boxes.push(texture_box);
 
         for (x, y) in points {
             warped_points.push(warp_a_point((*x, *y), &texture_box, b))
@@ -91,7 +86,6 @@ fn warp(
         return;
     }
 
-
     let cur_mip = &mipmaps[level];
     let pdfs = [
         scale * cur_mip[y][x],
@@ -99,7 +93,6 @@ fn warp(
         scale * cur_mip[y + 1][x],
         scale * cur_mip[y + 1][x + 1],
     ];
-
 
     let sum = 1.0 / (pdfs[0] + pdfs[1] + pdfs[2] + pdfs[3]);
     let mid_1 = sum * (pdfs[0] + pdfs[1]);
@@ -131,59 +124,62 @@ fn warp(
         point_cache[offset].push((*x, *y));
     }
 
-    // dbg!(point_cache[0].len());
-    // dbg!(point_cache[1].len());
-    // dbg!(point_cache[2].len());
-    // dbg!(point_cache[3].len());
-
     let nl = level + 1;
     let nx = x << 1;
     let ny = y << 1;
     let nw = w << 1;
 
     for idx in 0..4 {
-        let ox = (idx & 1) ;
-        let oy = ((idx & 2) >> 1) ;
+        let ox = (idx & 1) << 1;
+        let oy = idx & 2;
         if point_cache[idx].len() > 0 {
-            // let nl = dbg!(nl);
-            // let nx = dbg!(nx);
-            // let ox = dbg!(ox);
-            // let ny = dbg!(ny);
-            // let oy = dbg!(oy);
             warp(
                 mipmaps,
                 nl,
-                nx + ox * 2,
-                ny + oy * 2,
                 nx + ox,
                 ny + oy,
                 nw,
-                1.0,//pdfs[idx],
+                pdfs[idx],
                 &boxes[idx],
                 &point_cache[idx],
                 warped_points,
-                debug_boxes,
             )
         }
     }
 }
 
-fn main() {
-    let points = Sequence::new(2)
-        .zip(Sequence::new(3))
-        .take(10000)
-        .collect::<Vec<_>>();
+fn print_mips(mipmaps: &Vec<&Vec<Vec<f64>>>) {
+    for (midx, m) in mipmaps.iter().enumerate() {
+        println!("\nPixels {}:", midx);
+        m.iter().enumerate().for_each(|(idx, r)| {
+            let k = 1 << (1 + midx);
 
-    let image_bytes = include_bytes!("../ImportanceSampleThis.png");
+            if idx % 2 == 0 {
+                println!("{}", "-".repeat(k * 4 + (1 << midx) + 6));
+            }
 
-    let full_image = image::load_from_memory(image_bytes).unwrap();
+            print!("{:3} : ", idx);
 
+            r.iter()
+                .enumerate()
+                .for_each(|(idx, p)| print!("{:3} {}", p, if idx & 1 == 1 { "|" } else { "" }));
+
+            println!("");
+        });
+        println!("");
+
+        if midx >= 3 {
+            break;
+        }
+    }
+}
+
+fn generate_mipmaps(full_res: RgbaImage) -> Vec<RgbaImage> { 
     let mut mipmaps = vec![];
 
-    mipmaps.push(full_image.to_rgba());
+    mipmaps.push(full_res);
 
-    loop
-    {
+    loop {
         let img = mipmaps.last().unwrap();
 
         let nw = img.width() / 2;
@@ -205,23 +201,34 @@ fn main() {
                     ((p0.0 as u32 + p1.0 as u32 + p2.0 as u32 + p3.0 as u32) / 4) as u8,
                     ((p0.1 as u32 + p1.1 as u32 + p2.1 as u32 + p3.1 as u32) / 4) as u8,
                     ((p0.2 as u32 + p1.2 as u32 + p2.2 as u32 + p3.2 as u32) / 4) as u8,
-                    ((p0.3 as u32 + p1.3 as u32 + p2.3 as u32 + p3.3 as u32) / 4) as u8]);
+                    ((p0.3 as u32 + p1.3 as u32 + p2.3 as u32 + p3.3 as u32) / 4) as u8,
+                ]);
             }
         }
 
         let nimg = ImageBuffer::from_vec(nw, nh, ndata).unwrap();
         mipmaps.push(nimg);
-        
-        if nw == 2 || nh == 2{
+
+        if nw == 2 || nh == 2 {
             break;
         }
     }
 
-    println!("{}", mipmaps.len());
+    mipmaps
+}
 
-    // for (x, y) in &points {
-    //     println!("{} {}", x, y);
-    // }
+fn main() {
+    let points = Sequence::new(2)
+        .zip(Sequence::new(3))
+        .take(250)
+        .collect::<Vec<_>>();
+
+    let image_bytes = include_bytes!("../ImportanceSampleThis.png");
+
+    let full_image = image::load_from_memory(image_bytes).unwrap();
+
+    let mipmaps = generate_mipmaps(full_image.to_rgba());
+
     let background_image = &mipmaps[0];
 
     let mut window = Window::new("Warped sampling", WIDTH, HEIGHT, WindowOptions::default())
@@ -239,62 +246,29 @@ fn main() {
             for y in 0..m.height() {
                 let mut row = vec![];
                 for x in 0..m.width() {
-                    row.push(m.get_pixel(x, y).channels4().0 as f64)
+                    let c = m.get_pixel(x, y).channels4();
+                    let l = (((c.0 as f64) / 255.0) * 0.299) + 
+                        (((c.1 as f64) / 255.0) * 0.587) + 
+                        (((c.2 as f64) / 255.0) * 0.114);
+                    //let l = if l > 0.5 { l } else { 0.0 };
+                    row.push(l)
                 }
                 pixels.push(row);
             }
-            maps.push(
-                /*m.raw_pixels()
-                .iter()
-                .step_by(4)
-                .map(|x| *x as f64 / 255.0 + 0.001)
-                .collect::<Vec<_>>(),*/
-                pixels,
-            );
+            maps.push(pixels);
         }
         maps
     };
 
-    for (midx, m) in mipmaps.iter().rev().enumerate() {
-        println!("\nPixels {}:", midx);
-        m.iter()
-            .enumerate()
-            .for_each(|(idx, r)| {
-                let k = (1 << (1 + midx));
+    let mipmaps = mipmaps.iter().rev().collect::<Vec<_>>();
 
-                if idx % 2 == 0 {
-                    println!("{}", "-".repeat(k * 4 + (1 << midx) + 6));
-                }
-
-                print!("{:3} : ", idx);
-
-                r.iter().enumerate().for_each(|(idx, p)| {
-                    
-                    print!("{:3} {}", p, if idx & 1 == 1  { "|" } else { "" })
-                });
-
-
-                println!("");
-            });
-        println!("");
-
-        if midx >= 3 {
-            break;
-        }
-    }
-
-    let mipmaps = mipmaps
-        .iter()
-        .rev()
-        //.skip(mipmaps.len() - 3)
-        .collect::<Vec<_>>();
+    print_mips(&mipmaps);
 
     let mut new_warped = vec![];
-    let mut debug_boxes = vec![];
     warp(
         &mipmaps,
         0,
-        0,0,0,
+        0,
         0,
         2,
         1.0,
@@ -304,15 +278,13 @@ fn main() {
         },
         &points,
         &mut new_warped,
-        &mut debug_boxes,
     );
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         clear(&mut image, Rgba([0, 0, 255, 255]));
         imageops::replace(&mut image, &background_image, 0, 0);
 
-    if false
-        {
+        if false {
             for (x, y) in &points {
                 draw_hollow_circle_mut(
                     &mut image,
@@ -326,38 +298,17 @@ fn main() {
             }
         }
 
-            for (x, y) in &new_warped {
-                draw_hollow_circle_mut(
-                    &mut image,
-                    (
-                        (x.max(0.0) * background_image.width() as f64) as i32,
-                        (y.max(0.0) * background_image.height() as f64) as i32,
-                    ),
-                    2,
-                    Rgba([0x0, 0xee, 0, 0x33]),
-                );
-            }
-
-        for b in debug_boxes.iter() {
-            draw_hollow_rect_mut(
+        for (x, y) in &new_warped {
+            draw_hollow_circle_mut(
                 &mut image,
-                imageproc::rect::Rect::at((b.min.0 * background_image.width() as f64) as i32, (b.min.1 * background_image.height() as f64) as i32)
-                    .of_size(
-                        ((b.max.0 - b.min.0) * background_image.width() as f64) as u32,
-                        ((b.max.1 - b.min.1) * background_image.height() as f64) as u32,
-                    ),
-                Rgba([0xff, 0xff, 0x44, 0]),
+                (
+                    (x.max(0.0) * background_image.width() as f64) as i32,
+                    (y.max(0.0) * background_image.height() as f64) as i32,
+                ),
+                2,
+                Rgba([0x0, 0xee, 0, 0x33]),
             );
         }
-
-        // for (x, y) in &points {
-        //     draw_hollow_circle_mut(
-        //         &mut image,
-        //         ((x * WIDTH as f64) as i32, (y * HEIGHT as f64) as i32),
-        //         4,
-        //         Rgba([0x0, 0xee, 0xee, 0x33]),
-        //     );
-        // }
 
         into_buffer(&image, &mut scratch_buffer);
         window.update_with_buffer(&scratch_buffer).unwrap();
