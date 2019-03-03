@@ -57,7 +57,24 @@ fn warp_a_point(point: (f64, f64), texture_region: &Box2f, warp: &Box2f) -> (f64
     )
 }
 
-fn warp(
+fn warp(mipmaps: &Vec<&Vec<Vec<f64>>>, points: &[(f64, f64)], warped_points: &mut Vec<(f64, f64)>) {
+    warp_recurse(
+        &mipmaps,
+        0,
+        0,
+        0,
+        2,
+        1.0,
+        &Box2f {
+            min: (0.0, 0.0),
+            max: (1.0, 1.0),
+        },
+        &points,
+        warped_points,
+    );
+}
+
+fn warp_recurse(
     mipmaps: &Vec<&Vec<Vec<f64>>>,
     level: usize,
     x: usize,
@@ -73,10 +90,7 @@ fn warp(
 
         let texture_box = Box2f {
             min: (x as f64 * inv_size, y as f64 * inv_size),
-            max: (
-                (x as f64 + 2.0) * inv_size,
-                (y as f64 + 2.0) * inv_size,
-            ),
+            max: ((x as f64 + 2.0) * inv_size, (y as f64 + 2.0) * inv_size),
         };
 
         for (x, y) in points {
@@ -133,7 +147,7 @@ fn warp(
         let ox = (idx & 1) << 1;
         let oy = idx & 2;
         if point_cache[idx].len() > 0 {
-            warp(
+            warp_recurse(
                 mipmaps,
                 nl,
                 nx + ox,
@@ -174,7 +188,7 @@ fn print_mips(mipmaps: &Vec<&Vec<Vec<f64>>>) {
     }
 }
 
-fn generate_mipmaps(full_res: RgbaImage) -> Vec<RgbaImage> { 
+fn generate_mipmaps(full_res: RgbaImage) -> Vec<RgbaImage> {
     let mut mipmaps = vec![];
 
     mipmaps.push(full_res);
@@ -247,9 +261,9 @@ fn main() {
                 let mut row = vec![];
                 for x in 0..m.width() {
                     let c = m.get_pixel(x, y).channels4();
-                    let l = (((c.0 as f64) / 255.0) * 0.299) + 
-                        (((c.1 as f64) / 255.0) * 0.587) + 
-                        (((c.2 as f64) / 255.0) * 0.114);
+                    let l = (((c.0 as f64) / 255.0) * 0.299)
+                        + (((c.1 as f64) / 255.0) * 0.587)
+                        + (((c.2 as f64) / 255.0) * 0.114);
                     //let l = if l > 0.5 { l } else { 0.0 };
                     row.push(l)
                 }
@@ -265,20 +279,7 @@ fn main() {
     print_mips(&mipmaps);
 
     let mut new_warped = vec![];
-    warp(
-        &mipmaps,
-        0,
-        0,
-        0,
-        2,
-        1.0,
-        &Box2f {
-            min: (0.0, 0.0),
-            max: (1.0, 1.0),
-        },
-        &points,
-        &mut new_warped,
-    );
+    warp(&mipmaps, &points, &mut new_warped);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         clear(&mut image, Rgba([0, 0, 255, 255]));
