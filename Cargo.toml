@@ -3,6 +3,21 @@ name = "warped-sampling"
 version = "0.1.0"
 authors = ["Jasper-Bekkers <bekkers@gmail.com>"]
 edition = "2018"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/Jasper-Bekkers/warped-sampling"
+repository = "https://github.com/Jasper-Bekkers/warped-sampling"
+keywords = ["rendering", "sampling", "mipmap", "warped"]
+categories = ["rendering"]
+include = [
+    "src/*.rs",
+    "Cargo.toml",
+]
+documentation = "https://docs.rs/warped-sampling"
+description = "Rust implementation of the Warped Sampling technique for mipmaps from http://graphics.ucsd.edu/~henrik/papers/wavelet_importance_sampling.pdf"
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dev-dependencies]
 halton = "0.1.0"

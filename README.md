@@ -18,10 +18,13 @@ Add this to your `Cargo.toml`:
 warped-sampling = "0.1.0"
 ```
 
-Run the visual example as `cargo run --example visual`
+Run the visual example as `cargo run --example visual` to generate some sample points.
 
-![Input](readme/Input.png?raw=true "Title")
-![OUtput](readme/Output.png?raw=true "Title")
+### Input image
+![Input](readme/Input.png?raw=true "Input")
+
+### Output image
+![Output](readme/Output.png?raw=true "Output")
 
 ## License
 
