@@ -31,7 +31,11 @@ fn warp_a_point(point: (f64, f64), texture_region: &Box2f, warp: &Box2f) -> (f64
     )
 }
 
-pub fn warp(mipmaps: &Vec<&Vec<Vec<f64>>>, points: &[(f64, f64)], warped_points: &mut Vec<(f64, f64)>) {
+pub fn warp(
+    mipmaps: &Vec<&Vec<Vec<f64>>>,
+    points: &[(f64, f64)],
+    warped_points: &mut Vec<(f64, f64)>,
+) {
     warp_recurse(
         &mipmaps,
         0,

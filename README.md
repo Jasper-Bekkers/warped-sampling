@@ -1,5 +1,6 @@
 warped-sampling
 ========
+[![travis-ci.com](https://travis-ci.com/Jasper-Bekkers/warped-sampling.svg?branch=master)](https://travis-ci.com/Jasper-Bekkers/warped-sampling)
 [![Latest version](https://img.shields.io/crates/v/warped-sampling.svg)](https://crates.io/crates/warped-sampling)
 [![Documentation](https://docs.rs/warped-sampling/badge.svg)](https://docs.rs/warped-sampling)
 [![](https://tokei.rs/b1/github/Jasper-Bekkers/warped-sampling)](https://github.com/Jasper-Bekkers/warped-sampling)
